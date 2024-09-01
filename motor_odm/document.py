@@ -22,7 +22,7 @@ from typing import (
 from bson import CodecOptions, ObjectId
 from motor.core import AgnosticClientSession, AgnosticCollection, AgnosticDatabase
 from pydantic import BaseModel, Field
-from pydantic.main import ModelMetaclass
+from pydantic._internal._model_construction import ModelMetaclass
 from pymongo import IndexModel, ReadPreference, ReturnDocument, WriteConcern
 from pymongo.errors import DuplicateKeyError
 from pymongo.read_concern import ReadConcern
@@ -314,7 +314,12 @@ class Document(BaseModel, metaclass=DocumentMetaclass, abstract=True):
         for obj, inserted_id in zip(objects, result.inserted_ids):
             obj.id = inserted_id
 
-    async def save(self, upsert: bool = True, *args: Any, **kwargs: Any,) -> bool:
+    async def save(
+        self,
+        upsert: bool = True,
+        *args: Any,
+        **kwargs: Any,
+    ) -> bool:
         """Saves this instance to the database.
 
         By default this method creates the document in the database if it doesn't exist.
