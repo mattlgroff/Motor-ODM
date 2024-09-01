@@ -17,6 +17,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    Tuple,
 )
 
 from bson import CodecOptions, ObjectId
@@ -314,7 +315,12 @@ class Document(BaseModel, metaclass=DocumentMetaclass, abstract=True):
         for obj, inserted_id in zip(objects, result.inserted_ids):
             obj.id = inserted_id
 
-    async def save(self, upsert: bool = True, *args: Any, **kwargs: Any,) -> bool:
+    async def save(
+        self,
+        upsert: bool = True,
+        *args: Any,
+        **kwargs: Any,
+    ) -> bool:
         """Saves this instance to the database.
 
         By default this method creates the document in the database if it doesn't exist.
@@ -478,3 +484,44 @@ class Document(BaseModel, metaclass=DocumentMetaclass, abstract=True):
         return await cls.collection().count_documents(  # type: ignore
             filter, *args, **kwargs
         )
+
+    @classmethod
+    async def find_paginated(
+        cls: Type["GenericDocument"],
+        filter: "DictStrAny" = None,
+        skip: int = 0,
+        limit: int = 0,
+        sort: List[Tuple[str, int]] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Tuple[int, List["GenericDocument"]]:
+        """
+        Returns a paginated result of documents matching the filter.
+
+        :param filter: The filter to apply to the query.
+        :param skip: The number of documents to skip.
+        :param limit: The maximum number of documents to return.
+        :param sort: A list of (key, direction) pairs for sorting the results.
+        :param args: Additional positional arguments to pass to the find method.
+        :param kwargs: Additional keyword arguments to pass to the find method.
+        :return: A tuple containing the total count of matching documents and the list of paginated documents.
+        """
+        if filter is None:
+            filter = {}
+
+        total = await cls.count_documents(filter)
+
+        cursor = cls.collection().find(filter, *args, **kwargs)
+
+        if sort:
+            cursor = cursor.sort(sort)
+
+        if skip:
+            cursor = cursor.skip(skip)
+
+        if limit:
+            cursor = cursor.limit(limit)
+
+        results = [cls(**doc) async for doc in cursor]
+
+        return total, results
